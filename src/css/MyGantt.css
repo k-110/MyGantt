@@ -1,0 +1,98 @@
+.gantt-MyGantt {
+  border: solid 1px black; }
+
+.gantt-scroll {
+  fill: darkgray; }
+
+.gantt-scroll-background {
+  fill: lightcyan; }
+
+.gantt-background {
+  fill: white; }
+
+.gantt-background-even {
+  fill: whitesmoke; }
+
+.gantt-header {
+  fill: lightcyan; }
+
+.gantt-grid {
+  fill: none;
+  stroke: azure;
+  stroke-width: 1px; }
+
+.gantt-grid-label {
+  fill: black;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-grid-label-top {
+  fill: black;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-event {
+  fill: black;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-today-highlight {
+  fill: peachpuff; }
+
+.gantt-weekend-highlight {
+  fill: lavender; }
+
+.gantt-firstday-highlight {
+  fill: none;
+  stroke: lightskyblue;
+  stroke-width: 1px; }
+
+.gantt-bar {
+  fill: green;
+  stroke: black;
+  stroke-width: 1px; }
+
+.gantt-bar-task {
+  fill: white; }
+
+.gantt-bar-resize {
+  fill: white;
+  stroke: black;
+  stroke-width: 1px; }
+
+.gantt-bar-progress {
+  fill: greenyellow;
+  stroke: none;
+  stroke-width: 1px; }
+
+.gantt-bar-label {
+  fill: black;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-over-label {
+  fill: orange;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-bar-task-select {
+  fill: none;
+  stroke: red;
+  stroke-width: 2px; }
+
+.gantt-bar-task-complete {
+  fill: black; }
+
+.gantt-bar-label-complete {
+  fill: white;
+  font-size: 12px;
+  text-anchor: start; }
+
+.gantt-arrow {
+  fill: none;
+  stroke: chocolate;
+  stroke-width: 2px; }
+
+.gantt-arrow-end {
+  fill: chocolate; }
+

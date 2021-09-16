@@ -1,0 +1,18 @@
+.gantt-bar担当1 {
+  fill: red;
+  stroke: black;
+  stroke-width: 1px;
+}
+.gantt-bar-task担当1 {
+  fill: red;
+}
+.gantt-bar-progress担当1 {
+  fill: orange;
+  stroke: none;
+  stroke-width: 1px; 
+}
+.gantt-over-label担当1 {
+  fill: blue;
+  font-size: 12px;
+  text-anchor: start;
+}

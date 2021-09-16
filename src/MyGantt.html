@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<head lang="ja">
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css">
+  <!-- MyGannt CSS -->
+  <link rel="stylesheet" href="./css/MyGantt.css">
+  <link rel="stylesheet" href="./css/config.css">
+  <!-- CSS -->
+  <style>
+    .navbar-nav > li {
+      font-size: 12px;
+    }
+    .btn-primary {
+      font-size: 12px;
+    }
+    .btn-link {
+      font-size: 12px;
+    }
+    .form-control {
+      font-size: 12px;
+    }
+    .form-select {
+      font-size: 12px;
+      border: 1px;
+    }
+    .form-range {
+      height : 12px;
+      width : 400px;
+    }
+    label {
+      font-size: 12px;
+    }
+    input {
+      font-size: 12px;
+    }
+  </style>
+  <title>Gantt</title>
+</head>
+<body>
+  <!-- Optional JavaScript; choose one of the two! -->
+  <!--
+  <script src="#"></script>
+  -->
+  <!-- Option 1: Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Option 2: MyGannt -->
+  <script src="./js/svg.js/svg.min.js"></script>
+  <script src="./js/MyGantt.js"></script>
+  <script src="./js/config.js"></script>
+  <script src="./js/tasks.json"></script>
+
+  <header style="color:white; background-color:black;">Gantt</header>
+  <nav class="navbar navbar-expand-sm navbar-light bg-light my-0 mx-0 py-0 px-0">
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <button type="button" class="btn btn-primary py-0 px-3 mx-3" id="btn_save" onclick="onclickSave();" disabled>保存</button>
+        </li>
+        <li class="nav-item">
+          <div class="form-check px-3">
+            <input class="form-check-input" type="checkbox" value="" id="check_viewComplete" onclick="onclickCheckComplete();">
+            <label class="form-check-label" for="check_viewComplete">完了項目非表示</label>
+          </div>
+        </li>
+        <li class="nav-item">
+          <div class="form-check px-3">
+            <input class="form-check-input" type="checkbox" value="" id="check_viewText" onclick="onclickCheckText();">
+            <label class="form-check-label" for="check_viewText">テキスト表示</label>
+          </div>
+        </li>
+        <li class="nav-item">
+          <select id="select_range" class="form-select py-0" onchange="viewGanttChart();">
+            <option value="Quarter">四半期</option>
+            <option value="Month">月</option>
+            <option value="Week">週</option>
+            <option value="Day">日</option>
+          </select>
+        </li>
+        <li class="nav-item">
+          <div class="form-check px-3">
+            <input class="form-check-input" type="checkbox" value="" id="check_viewTaskbg" onclick="onclickCheckTaskbg();">
+            <label class="form-check-label" for="check_viewTaskbg">項目背景</label>
+          </div>
+        </li>
+        <li class="nav-item">
+          <input class="form-control my-0 mx-0 py-0 px-0" type="number" min="200" max="9999" step="20" id="input_svg_height" name="svg_height" value="" onchange="onchangeHeight();">
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <div>
+    <form class="py-0 mx-0">
+      <button type="button" class="btn btn-primary py-0 mx-3" id="btn_add" onclick="onclickBtnAdd();">項目追加</button>
+      <label class="py-0 mx-3">
+        <input class="form-check-input" type="checkbox" value="" id="check_addinit">
+        初期値の指定
+      </label>
+      <label class="py-0 mx-0">
+        <input class="form-check-input" type="checkbox" value="" id="check_addnext">
+        選択項目の下に追加
+      </label>
+    </form>
+  </div>
+  <div>
+    <form class="py-0 mx-0">
+      <!--
+      <button type="button" class="btn btn-primary py-0 mx-3" id="btn_edit" onclick="onclickBtnEdit();">項目変更</button>
+      -->
+      <label class="py-0 mx-1">
+        <input id="input_task_base" type="hidden" name="task_base" disabled>
+      </label>
+      <label class="py-0 mx-0">
+        <input class="form-check-input" type="checkbox" value="" id="check_sameline" onclick="onclickBtnEdit();">
+      </label>
+      <button type="button" class="btn btn-primary py-0 mx-0" id="btn_up" onclick="onclickBtnUp();">▲</button>
+      <button type="button" class="btn btn-primary py-0 mx-0" id="btn_down" onclick="onclickBtnDown();">▼</button>
+      <label class="py-0 mx-0">
+        <input id="input_task_name" type="text" name="task_name" onchange="onclickBtnEdit();">
+        <input id="input_task_layer" type="number" min="1" max="5" step="1" value="" onchange="onclickBtnEdit();">
+      </label>
+      <label class="py-0 mx-3">
+        <input id="input_task_progress" type="number" min="0" max="100" step="1" value="" onchange="onclickBtnEdit();">
+        %
+      </label>
+      <label class="py-0 mx-3">
+        親項目
+        <input id="input_task_dependencies" type="text" name="task_dependencies" onchange="onclickBtnEdit();">
+      </label>
+      <label class="py-0 mx-0">
+        <input id="input_task_start" type="date" name="task_start" style="width:110px;" onchange="onclickBtnEdit();">
+      </label>
+      <label class="py-0 mx-0">
+        ～
+        <input id="input_task_days" type="number" min="1" max="999" step="1" name="task_days" onchange="onclickBtnEdit();">
+        日
+      </label>
+      <label class="py-0 mx-3">
+        <select id="select_user" class="form-select py-0" onchange="onclickBtnEdit();">
+          <option value="">担当</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn-primary py-0 mx-3" id="btn_delete" onclick="onclickBtnDelete();">削除</button>
+    </form>
+  </div>
+  <div class="my-1" id='MyGanttDiv'>
+    <svg id="MyGantt"></svg>
+  </div>
+  <div class="my-3 mx-3">
+    <textarea rows="10" class="form-control" name="text_memo" id="text_memo" style="overflow:auto;"></textarea>
+  </div>
+  <script>
+    var gantt = null;
+    var interval_id = 0;
+
+    function onclickSave(){
+      let var_range  = 'var range  = \'' + document.getElementById('select_range').options[document.getElementById('select_range').selectedIndex].value + '\';\n'
+      let var_height = 'var height = ' + document.getElementById('input_svg_height').value + ';\n'
+      let var_tasks  = 'var tasks  = ' + JSON.stringify(gantt.getTasks()) + ';\n';
+      let write_json = var_range + var_height + var_tasks;
+      let blob = new Blob([write_json], {type: 'application/json'});
+      let aTag = document.createElement("a");
+      aTag.href = URL.createObjectURL(blob);
+      aTag.download = 'tasks.json';
+      aTag.click();
+      URL.revokeObjectURL(aTag.href);
+    }
+
+    function viewGanttChart(){
+      let select_range = document.getElementById('select_range');
+      gantt.changeRange(select_range.options[select_range.selectedIndex].value);
+    }
+
+    function onchangeHeight(){
+      let height = document.getElementById('input_svg_height').value;
+      gantt.changeHeight(height);
+      document.getElementById('btn_save').removeAttribute('disabled');
+    }
+
+    function onclickCheckComplete(){
+      let check_viewComplete = document.getElementById('check_viewComplete');
+      gantt.changeViewComplete(check_viewComplete.checked);
+    }
+
+    function onclickCheckText(){
+      let check_viewText = document.getElementById('check_viewText');
+      gantt.changeViewText(check_viewText.checked);
+    }
+
+    function onclickCheckTaskbg(){
+      let check_viewTaskbg = document.getElementById('check_viewTaskbg');
+      gantt.changeTaskbg(check_viewTaskbg.checked);
+    }
+
+    function onclickBtnUp(){
+      let input_task_base = document.getElementById('input_task_base');
+      gantt.upTask(input_task_base.value);
+    }
+
+    function onclickBtnDown(){
+      let input_task_base = document.getElementById('input_task_base');
+      gantt.downTask(input_task_base.value);
+    }
+
+    function onclickBtnAdd(){
+      let check_addinit = document.getElementById('check_addinit');
+      let check_addnext = document.getElementById('check_addnext');
+      let input_task_base = document.getElementById('input_task_base');
+      let input_task_name = document.getElementById('input_task_name');
+      let input_task_layer = document.getElementById('input_task_layer');
+      let input_task_progress = document.getElementById('input_task_progress');
+      let input_task_dependencies = document.getElementById('input_task_dependencies');
+      let input_task_start = document.getElementById('input_task_start');
+      let input_task_days = document.getElementById('input_task_days');
+      let select_user = document.getElementById('select_user');
+      let check_sameline = document.getElementById('check_sameline');
+      let task = {
+        'name'        : input_task_name.value,
+        'layer'       : input_task_layer.value,
+        'progress'    : input_task_progress.value,
+        'dependencies': gantt.textToArray(input_task_dependencies.value),
+        'start'       : input_task_start.value,
+        'days'        : input_task_days.value,
+        'custom_class': select_user.options[select_user.selectedIndex].value,
+        'sameline'    : (check_sameline.checked) ? 'on' : 'off'
+      };
+      gantt.addTask((check_addinit.checked) ? task : {}, (check_addnext.checked) ? input_task_base.value : '');
+    }
+
+    function onclickBtnEdit(){
+      let input_task_base = document.getElementById('input_task_base');
+      let input_task_name = document.getElementById('input_task_name');
+      let input_task_layer = document.getElementById('input_task_layer');
+      let input_task_progress = document.getElementById('input_task_progress');
+      let input_task_dependencies = document.getElementById('input_task_dependencies');
+      let input_task_start = document.getElementById('input_task_start');
+      let input_task_days = document.getElementById('input_task_days');
+      let select_user = document.getElementById('select_user');
+      let check_sameline = document.getElementById('check_sameline');
+      let task = {
+        'name'        : input_task_name.value,
+        'layer'       : input_task_layer.value,
+        'progress'    : input_task_progress.value,
+        'dependencies': gantt.textToArray(input_task_dependencies.value),
+        'start'       : input_task_start.value,
+        'days'        : input_task_days.value,
+        'custom_class': select_user.options[select_user.selectedIndex].value,
+        'sameline'    : (check_sameline.checked) ? 'on' : 'off'
+      };
+      gantt.updateTask(input_task_base.value, task);
+    }
+
+    function onclickBtnDelete(){
+      let input_task_base = document.getElementById('input_task_base');
+      gantt.deleteTask(input_task_base.value);
+      clearTask();
+    }
+
+    function clearTask(){
+      let input_task_base = document.getElementById('input_task_base');
+      let input_task_name = document.getElementById('input_task_name');
+      let input_task_layer = document.getElementById('input_task_layer');
+      let input_task_progress = document.getElementById('input_task_progress');
+      let input_task_dependencies = document.getElementById('input_task_dependencies');
+      let input_task_start = document.getElementById('input_task_start');
+      let input_task_days = document.getElementById('input_task_days');
+      let select_user = document.getElementById('select_user');
+      let check_sameline = document.getElementById('check_sameline');
+      input_task_base.value         = '';
+      input_task_name.value         = '';
+      input_task_layer.value        = '';
+      input_task_progress.value     = '';
+      input_task_dependencies.value = '';
+      input_task_start.value        = '';
+      input_task_days.value         = '';
+      select_user.options[0].selected = true;
+      check_sameline.checked        = false;
+      gantt.selectTask()
+    }
+
+    function selectTask(task){
+      let input_task_base = document.getElementById('input_task_base');
+      let input_task_name = document.getElementById('input_task_name');
+      let input_task_layer = document.getElementById('input_task_layer');
+      let input_task_progress = document.getElementById('input_task_progress');
+      let input_task_dependencies = document.getElementById('input_task_dependencies');
+      let input_task_start = document.getElementById('input_task_start');
+      let input_task_days = document.getElementById('input_task_days');
+      let select_user = document.getElementById('select_user');
+      let check_sameline = document.getElementById('check_sameline');
+      input_task_base.value         = task.id;
+      input_task_name.value         = task.name;
+      input_task_layer.value        = task.layer;
+      input_task_progress.value     = task.progress;
+      input_task_dependencies.value = task.dependencies;
+      input_task_start.value        = task.start;
+      input_task_days.value         = task.days;
+      for(let num=0; num<select_user.options.length; num++){
+        if(select_user.options[num].value === task.custom_class){
+            select_user.options[num].selected = true;
+            break;
+        }
+      }
+      check_sameline.checked        = ('on' === task.sameline) ? true : false;
+      gantt.selectTask(task.id)
+    }
+
+    // for debug↓
+    function cycleWork(){
+      try{
+        const text_memo = document.getElementById('text_memo');
+        text_memo.value = gantt.readHistory();
+      }
+      catch(ex){
+        document.write(ex);
+        clearInterval(interval_id);
+      }
+    }
+
+    try{
+      let select_user = document.getElementById('select_user');
+      for(let i=0; i < users.length; i++){
+        let option = document.createElement("option");
+        option.text = users[i].name;
+        option.value  = users[i].name;
+        select_user.appendChild(option);
+      }
+      let select_range = document.getElementById('select_range');
+      for(let i=0; i < select_range.options.length; i++){
+        if(select_range.options[i].value === range){
+          select_range.options[i].selected = true;
+          break;
+        }
+      }
+      document.getElementById('input_svg_height').value = height;
+      gantt = new MyGantt(tasks, 'MyGanttDiv', 'MyGantt', {
+        'onclick' : (task) => { selectTask(task); },
+        'onchange': (task) => { selectTask(task);
+          document.getElementById('btn_save').removeAttribute('disabled');
+         },
+        'height'  : height,
+        'range'   : range,
+        'holiday' : holiday,
+        'events'  : events,
+        'taskbg'  : false
+      });
+      gantt.drawGantt();
+      // for debug↓
+      interval_id = setInterval(cycleWork, 1000);
+    }
+    catch(ex){
+      document.write(ex);
+    }
+  </script>
+</body>
+</html>
