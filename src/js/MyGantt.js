@@ -69,27 +69,31 @@ class MyGantt{
     this.xsc_id = svg_id + '_MyGantt_xscroll';
     this.ysc_id = svg_id + '_MyGantt_yscroll';
     this.config = {
-      'onclick' : (task) => {},
-      'onchange': (task) => {},
-      'height'  : 200,
-      'range'   : 'Day',
-      'holiday' : [],
-      'events'  : [],
-      'complete': false,
-      'text'    : false,
-      'taskbg'  : false,
-      'xpos'    : -1,
-      'ypos'    : 0
+      'onclick'    : (task) => {},
+      'onchange'   : (task) => {},
+      'height'     : 200,
+      'range'      : 'Day',
+      'holiday'    : [],
+      'events'     : [],
+      'complete'   : false,
+      'text'       : false,
+      'taskbg'     : false,
+      'start_mask' : '',
+      'end_mask'   : '',
+      'xpos'       : -1,
+      'ypos'       : 0
     };
-    if(config.onclick) { this.config.onclick  = config.onclick; }
-    if(config.onchange){ this.config.onchange = config.onchange; }
-    if(config.height)  { this.config.height   = config.height; }
-    if(config.range)   { this.config.range    = config.range; }
-    if(config.holiday) { this.config.holiday  = config.holiday; }
-    if(config.events)  { this.config.events   = config.events; }
-    if(config.complete){ this.config.complete = config.complete; }
-    if(config.text)    { this.config.text     = config.text; }
-    if(config.taskbg)  { this.config.taskbg   = config.taskbg; }
+    if(config.onclick)   { this.config.onclick    = config.onclick; }
+    if(config.onchange)  { this.config.onchange   = config.onchange; }
+    if(config.height)    { this.config.height     = config.height; }
+    if(config.range)     { this.config.range      = config.range; }
+    if(config.holiday)   { this.config.holiday    = config.holiday; }
+    if(config.events)    { this.config.events     = config.events; }
+    if(config.complete)  { this.config.complete   = config.complete; }
+    if(config.text)      { this.config.text       = config.text; }
+    if(config.taskbg)    { this.config.taskbg     = config.taskbg; }
+    if(config.start_mask){ this.config.start_mask = config.start_mask; }
+    if(config.end_mask)  { this.config.end_mask   = config.end_mask; }
     MyGanttDraggableItem.dragElem = null;
     MyGanttDraggableItem.parent   = this;
     this.select  = '';
@@ -147,6 +151,7 @@ class MyGantt{
   updateTask(id, task){
     let index = this.tasks.findIndex((t) => t.id === id);
     if((0 <= index) && this.isEnableName(id, task.name) && this.isEnableDependencies(id, task.name, task.dependencies)){
+      this.removeArrow(this.tasks[index]);
       if(task.name)        { this.tasks[index].name         = task.name; }
       if(task.layer)       { this.tasks[index].layer        = task.layer; }
       if(task.start)       { this.tasks[index].start        = task.start; }
@@ -164,9 +169,29 @@ class MyGantt{
         }
       }
       this.writeHistory('updateTask ' + id + ' > ' + task.name)
-      this.drawGantt();
+      let tasks = [this.tasks[index]];
+      if(this.isNeedReview(tasks)){
+        this.drawGantt();
+      }
+      else{
+        this.addArrow(this.tasks[index]);
+        this.drawGanttTasks(this.tasks[index].id);
+        this.writeHistory('drawGanttTask');
+      }
       this.config.onchange(this.tasks[index]);
     }
+  }
+
+  isChagenTask(id, name, layer, start, days, progress){
+    let index = this.tasks.findIndex((t) => t.id === id);
+    if(0 <= index){
+      if(this.tasks[index].name     !== name){ return true; }
+      if(this.tasks[index].layer    !== layer){ return true; }
+      if(this.tasks[index].start    !== start){ return true; }
+      if(this.tasks[index].days     !== days){ return true; }
+      if(this.tasks[index].progress !== progress){ return true; }
+    }
+    return false;
   }
 
   addTask(task, next=''){
@@ -181,7 +206,11 @@ class MyGantt{
       'close'       : 0,
       'custom_class': ''
     };
-    if(task.name)        { new_task.name         = task.name; }
+    if(task.name){
+      if(this.isEnableName(null, task.name)){
+        new_task.name = task.name;
+      }
+    }
     if(task.layer)       { new_task.layer        = task.layer; }
     if(task.start)       { new_task.start        = task.start; }
     if(task.days)        { new_task.days         = task.days; }
@@ -191,16 +220,17 @@ class MyGantt{
                      else{ new_task.custom_class = '' }
     new_task.id = new_task.name;
     if(this.isEnableName(null, new_task.name) && this.isEnableDependencies(null, new_task.name, new_task.dependencies)){
-      this.tasks.push(new_task);
       if(0 < next.length){
         let index = this.tasks.findIndex((t) => t.id === next);
-        for(let i=this.tasks.length-1; (index+1)<i; i--){
-          let tmp = this.tasks[i];
-          this.tasks[i]   = this.tasks[i-1];
-          this.tasks[i-1] = tmp;
+        if(0 <= index){
+          this.tasks.splice(index+1, 0, new_task);
+        }
+        else{
+          this.tasks.push(new_task);
         }
       }
       else{
+        this.tasks.push(new_task);
         this.config.ypos = -1;
       }
       this.writeHistory('addTask ' + new_task.name)
@@ -276,10 +306,147 @@ class MyGantt{
     let array = [];
     if(text){
       if(0 < text.length){
-        array = text.replace(' ', '').split(',');
+        let deplist = text.split(',');
+        for(let i=0; i<deplist.length; i++){
+          let name = deplist[i].trim();
+          if(0 < name.length){
+            array.push(name);
+          }
+        }
       }
     }
     return array;
+  }
+
+  //------------------------
+  // Simple edit
+  //------------------------
+  getSimpleText(){
+    let text = '';
+    if(0 < this.tasks.length){
+      text = this.taskToSimpleText(this.tasks[0]);
+      for(let i=1; i<this.tasks.length; i++){
+        text += '\n' + this.taskToSimpleText(this.tasks[i]);
+      }
+    }
+    return text;
+  }
+
+  addSimpleText(id, text){
+    let index = this.tasks.length;
+    if(0 < id.length){
+      index = this.tasks.findIndex((t) => t.id === id) +1;
+      if(index < 1){
+        index = this.tasks.length;
+      }
+    }
+    let lines = text.replace('\r', '').split('\n');
+    for(let i=0; i<lines.length; i++){
+      let new_task = this.simpleteTextToNewTask(lines[i]);
+      if(new_task != null){
+        this.tasks.splice(index, 0, new_task);
+        index++;
+      }
+    }
+    this.drawGantt();
+  }
+
+  renameSimpleText(text){
+    let lines = text.replace('\r', '').split('\n');
+    if(lines.length != this.tasks.length){
+      return;
+    }
+    for(let i=0; i<lines.length; i++){
+      let simpleTask = this.getLayerAndName(lines[i]);
+      if(simpleTask != null){
+        this.writeHistory(simpleTask);
+        if(this.isEnableName(this.tasks[i].id, simpleTask.name) && (this.tasks[i].layer == simpleTask.layer)){
+          this.tasks[i].name = simpleTask.name;
+        }
+      }
+    }
+    this.writeHistory('renameSimpleText5');
+    this.drawGantt();
+  }
+
+  applySimpleText(text){
+    let lines = text.replace('\r', '').split('\n');
+    let new_tasks = []
+    for(let i=0; i<lines.length; i++){
+      let new_task = this.simpleteTextToTask(lines[i]);
+      if(new_task != null){
+        new_tasks.push(new_task);
+      }
+    }
+    this.tasks = new_tasks;
+    this.drawGantt();
+  }
+
+  taskToSimpleText(task){
+    let layer = '';
+    for(let i=1; i < task.layer; i++){
+      layer += '*';
+    }
+    if(1 < task.layer){
+      layer += ' ';
+    }
+    let text = layer + task.name;
+    return text;
+  }
+
+  simpleteTextToNewTask(text){
+    let simpleTask = this.getLayerAndName(text);
+    if(simpleTask != null){
+      let task = this.tasks.find((t) => t.id === simpleTask.name);
+      if(task == null){
+        let new_task = {
+          'id'          : simpleTask.name,
+          'name'        : simpleTask.name,
+          'layer'       : simpleTask.layer,
+          'progress'    : 0,
+          'dependencies': [],
+          'start'       : dateFormat(new Date()),
+          'days'        : 5,
+          'close'       : 0,
+          'custom_class': ''
+        };
+        return new_task;
+      }
+    }
+    return null;
+  }
+
+  simpleteTextToTask(text){
+    let simpleTask = this.getLayerAndName(text);
+    if(simpleTask != null){
+      let task = this.tasks.find((t) => t.id === simpleTask.name);
+      if(task != null){
+        task.layer = simpleTask.layer;
+        return task;
+      }
+    }
+    return null;
+  }
+
+  getLayerAndName(text){
+    let layer = 1;
+    let name  = '';
+    for(let i=0; i < text.length; i++){
+      if(text.charAt(i) === '*'){
+        layer++;
+        continue;
+      }
+      break;
+    }
+    name = text.slice(layer-1).trim();
+    if(0 < name.length){
+      let simpleTask = {
+        'name'  : name,
+        'layer' : layer,
+      };
+      return simpleTask;
+    }
+    return null;
   }
 
   //------------------------
@@ -297,7 +464,7 @@ class MyGantt{
     let svg  = SVG.adopt(gantt);
     svg.clear();
     this.log = 1;
-    this.close = 9;
+    this.clearCloseWrok();
     this.setConfig(svg, this.tasks);
     this.createFrame(svg);
     this.drowGroupCmd();
@@ -308,6 +475,75 @@ class MyGantt{
     this.drowGroupYsc();
     this.setPositionAndSize();
     this.writeHistory('drawGantt');
+  }
+
+  drawGanttTasks(id, complete=[]){
+    if(this.isComplete(id, complete)){
+      return;
+    }
+    complete.push(id);
+    let task = this.tasks.find((t) => t.id === id);
+    this.drawGanttTask(task);
+    for(let i=0; i<this.tasks.length; i++){
+      for(let j=0; j<this.tasks[i].dependencies.length; j++){
+        if(this.tasks[i].dependencies[j] === id){
+          this.drawGanttTasks(this.tasks[i].id, complete);
+          break;
+        }
+      }
+    }
+  }
+
+  drawGanttTask(task){
+    let elem_rect  = document.getElementById('gantt_label_rect_' + task.id);
+    let elem_text  = document.getElementById('gantt_label_' + task.id);
+    let elem_event = document.getElementById(task.id);
+    let elem_bar   = document.getElementById('gantt_bar_' + task.id);
+    let elem_prog  = document.getElementById('gantt_progress_' + task.id);
+    let elem_label = document.getElementById('gantt_label_bar_' + task.id);
+    //----------
+    // Task
+    //----------
+    if(elem_text != null){
+      let elem_rect_class = 'gantt-bar-task-none';
+      let elem_text_class = 'gantt-bar-label';
+      if(100 <= task.progress){
+        elem_rect_class = 'gantt-bar-task-complete';
+        elem_text_class = 'gantt-bar-label-complete';
+      }
+      else{
+        if(this.config.taskbg){
+          elem_rect_class = 'gantt-bar-task' + task.custom_class;
+        }
+      }
+      //Rect
+      elem_rect.setAttribute('class', elem_rect_class);
+      //Text
+      elem_text.setAttribute('class', elem_text_class);
+      elem_text.textContent = this.getTaskText(task);
+    }
+    //----------
+    // Bar
+    //----------
+    if(elem_bar != null){
+      //Bar
+      let x  = (this.head.w*(dateCalsDays(this.p.s, new Date(task.start)) -1))/this.p.g;
+      let w  = (this.head.w*task.days)/this.p.g;
+      this.writeHistory('old  x=' + elem_bar.getAttribute('x') + '  w=' + elem_bar.getAttribute('width'));
+      this.writeHistory('new  x=' + x + '  w=' + w);
+      elem_bar.setAttribute('class', 'gantt-bar' + task.custom_class);
+      elem_bar.setAttribute('x', x);
+      elem_bar.setAttribute('width', w);
+      //Progress
+      elem_prog.setAttribute('class', 'gantt-bar-progress' + task.custom_class);
+      elem_prog.setAttribute('x', x);
+      elem_prog.setAttribute('width', w*task.progress/100);
+      //Text
+      if(elem_label != null){
+        elem_label.textContent = task.name;
+      }
+      this.moveArrow(task.id);
+    }
   }
 
   changeRange(range=this.config.range){
@@ -344,9 +580,14 @@ class MyGantt{
     }
   }
 
-
   changeTaskbg(taskbg){
     this.config.taskbg = taskbg;
+    this.drawGantt();
+  }
+
+  changeTaskMask(st_mask, ed_mask){
+    this.config.start_mask = st_mask;
+    this.config.end_mask = ed_mask;
     this.drawGantt();
   }
 
@@ -390,7 +631,19 @@ class MyGantt{
     // Svg View Config
     let days = dateCalsDays(this.p.s, this.p.e) -1;
     this.w = this.head.ow + (this.head.w*days)/this.p.g;
-    this.h = this.head.h + this.task.h*tasks.length + this.task.sp + this.task.s;
+    this.h = this.head.h + this.task.h*this.getTasksViewCount(tasks) + this.task.sp + this.task.s;
+  }
+
+  getTasksViewCount(tasks){
+    let cnt = 0;
+    this.clearCloseWrok();
+    for(let i=0; i<tasks.length; i++){
+      if(this.isTaskHide(tasks[i])){
+        continue;
+      }
+      cnt++;
+    }
+    return cnt;
   }
 
   getNameLength(svg, tasks){
@@ -431,6 +684,18 @@ class MyGantt{
     }
     s = dateAddDays(s, -1);
     e = dateAddDays(e, +1);
+    if(0 < this.config.start_mask.length){
+      let stmsk_date = new Date(this.config.start_mask);
+      if(s < stmsk_date){
+        s = stmsk_date;
+      }
+    }
+    if(0 < this.config.end_mask.length){
+      let edmsk_date = dateAddDays(new Date(this.config.end_mask), 1);
+      if(edmsk_date < e){
+        e = edmsk_date;
+      }
+    }
     switch(this.config.range){
     case 'Quarter':
       s = new Date(s.getFullYear() + '/1/1');
@@ -513,7 +778,7 @@ class MyGantt{
     this.drawGrid(svg, bar.getBBox());
     this.drawCalendar(svg, bar.getBBox());
     this.drawBar(svg, this.tasks);
-    this.drawArrow(svg, this.tasks);
+    this.drawArrows(svg, this.tasks);
   }
 
   drowGroupXsc(){
@@ -890,6 +1155,9 @@ class MyGantt{
 
   drowEvent(svg, events){
     for(let i=0; i<events.length; i++){
+      if(this.isTaskMask(events[i].date)){
+        continue;
+      }
       let day= dateCalsDays(new Date(this.p.s), new Date(events[i].date));
       let x  = (this.head.w*(day -1))/this.p.g + this.head.sp + this.head.l;
       let y  = this.head.f*3 + this.head.sp + this.head.l;
@@ -899,6 +1167,7 @@ class MyGantt{
 
   drawTask(svg, tasks){
     let step = this.task.h;
+    this.clearCloseWrok();
     for(let i=0,c=0; i<tasks.length; i++){
       if(this.isTaskHide(tasks[i])){
         continue;
@@ -907,13 +1176,17 @@ class MyGantt{
       let y  = step*(c+1) - this.task.sp - this.task.l*2;
       let w  = this.head.ow-this.task.s;
       let id = 'gantt_label_' + tasks[i].id;
+      let idr= 'gantt_label_rect_' + tasks[i].id;
       if(100 <= tasks[i].progress){
-        svg.rect(w, step).attr({x:0, y:(step*c)}).addClass('gantt-bar-task-complete');
+        svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task-complete');
         svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label-complete');
       }
       else{
         if(this.config.taskbg){
-          svg.rect(w, step).attr({x:0, y:(step*c)}).addClass('gantt-bar-task' + tasks[i].custom_class);
+          svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task' + tasks[i].custom_class);
+        }
+        else{
+          svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task-none');
         }
         svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label');
       }
@@ -924,6 +1197,10 @@ class MyGantt{
     }
   }
 
+  clearCloseWrok(){
+    this.close = 9;
+  }
+
   isTaskHide(task){
     if(this.close < task.layer){
       return true;
@@ -932,10 +1209,29 @@ class MyGantt{
       this.close = task.layer;
     }
     else{
-      this.close = 9;
+      this.clearCloseWrok();
     }
     if(this.config.complete && (100<=task.progress)){
       return true;
+    }
+    if(this.isTaskMask(task.start)){
+      return true;
+    }
+    return false;
+  }
+
+  isTaskMask(start){
+    let task_start = new Date(start);
+    if(0 < this.config.start_mask.length){
+      if(task_start < new Date(this.config.start_mask)){
+        return true;
+      }
+    }
+    if(0 < this.config.end_mask.length){
+      let ed_mask = new Date(this.config.end_mask);
+      if(new Date(this.config.end_mask) < task_start){
+        return true;
+      }
     }
     return false;
   }
@@ -955,10 +1251,13 @@ class MyGantt{
   }
 
   drawBar(svg, tasks){
+    this.clearCloseWrok();
     for(let i=0,c=0; i<tasks.length; i++){
       if(this.isTaskHide(tasks[i])){
         if('on' === tasks[i].sameline){
-          this.drawBarSub(svg, tasks[i], c-1);
+          if(!this.isTaskMask(tasks[i].start)){
+            this.drawBarSub(svg, tasks[i], c-1);
+          }
         }
         continue;
       }
@@ -990,18 +1289,23 @@ class MyGantt{
     elem.addEventListener('mousemove',  this.eventMouseMove);
   }
 
-  drawArrow(svg, tasks){
+  drawArrows(svg, tasks){
+    this.clearCloseWrok();
     for(let i=0; i<tasks.length; i++){
-      if(this.isTaskHide(tasks[i])){
-        continue;
-      }
-      if(tasks[i].dependencies){
-        for(let j=0; j<tasks[i].dependencies.length; j++){
-          let id   = 'gantt_arrow_' + tasks[i].dependencies[j] + '_' + tasks[i].id;
-          let point= this.getPoint(tasks[i].id, tasks[i].dependencies[j]);
-          let line = svg.polyline(point).attr({id:id}).addClass('gantt-arrow');
-          line.marker('end', this.task.a, this.task.a, function(add){add.polygon([0,0, 0,4, 4,2]).addClass('gantt-arrow-end');});
-        }
+      this.drawArrow(svg, tasks[i]);
+    }
+  }
+
+  drawArrow(svg, task){
+    if(this.isTaskHide(task)){
+      return;
+    }
+    if(task.dependencies){
+      for(let j=0; j<task.dependencies.length; j++){
+        let id   = 'gantt_arrow_' + task.dependencies[j] + '_' + task.id;
+        let point= this.getPoint(task.id, task.dependencies[j]);
+        let line = svg.polyline(point).attr({id:id}).addClass('gantt-arrow');
+        line.marker('end', this.task.a, this.task.a, function(add){add.polygon([0,0, 0,4, 4,2]).addClass('gantt-arrow-end');});
       }
     }
   }
@@ -1112,12 +1416,38 @@ class MyGantt{
     }
   }
 
-  isNeedReview(){
+  addArrow(task){
+    let bar = document.getElementById(this.bar_id);
+    let svg = SVG.adopt(bar);
+    this.clearCloseWrok();
+    this.drawArrow(svg, task);
+    this.writeHistory('addArrow ' + task.id);
+  }
+
+  removeArrow(task){
+    for(let i=0; i<task.dependencies.length; i++){
+      let id   = 'gantt_arrow_' + task.dependencies[i] + '_' + task.id;
+      let line = document.getElementById(id);
+      if(line){
+        line.remove();
+      }
+    }
+    this.writeHistory('removeArrow ' + task.id);
+  }
+
+  isNeedReview(tasks=null){
     let start = new Date(this.p.s);
     let end   = new Date(this.p.e); 
-    for(let i=0; i<this.tasks.length; i++){
-      let ts  = new Date(this.tasks[i].start);
-      let te  = dateAddDays(ts, this.tasks[i].days);
+    if(tasks == null){
+      tasks = this.tasks;
+    }
+    for(let i=0; i<tasks.length; i++){
+      let bar = document.getElementById('gantt_bar_' + tasks[i].id);
+      if(bar == null){
+        continue;
+      }
+      let ts  = new Date(tasks[i].start);
+      let te  = dateAddDays(ts, tasks[i].days);
       if((ts < start) || (end < te)){
         return true;
       }
@@ -1340,12 +1670,13 @@ class MyGantt{
         if(select){
           let index = select.dependencies.findIndex((t) => t === id);
           if(0 <= index){
+            MyGanttDraggableItem.parent.removeArrow(select);
             select.dependencies.splice(index, 1);
           }
           else{
             select.dependencies.push(id);
           }
-          MyGanttDraggableItem.parent.drawGantt();
+          MyGanttDraggableItem.parent.addArrow(select);
           MyGanttDraggableItem.parent.config.onclick(select);
           return;
         }

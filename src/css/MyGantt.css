@@ -80,6 +80,9 @@
   stroke: red;
   stroke-width: 2px; }
 
+.gantt-bar-task-none {
+  fill: none; }
+
 .gantt-bar-task-complete {
   fill: black; }
 

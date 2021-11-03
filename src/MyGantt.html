@@ -87,7 +87,14 @@
           </div>
         </li>
         <li class="nav-item">
-          <input class="form-control my-0 mx-0 py-0 px-0" type="number" min="200" max="9999" step="20" id="input_svg_height" name="svg_height" value="" onchange="onchangeHeight();">
+          <input class="form-control my-0 mx-0 py-0 px-0" type="number" min="200" max="9999" step="20" id="input_svg_height" name="svg_height" value="{{height}}" onchange="onchangeHeight();">
+        </li>
+        <li class="nav-item py-0 pm-0">
+          <label class="py-0 mx-0">表示期間
+            <input id="input_start_mask" type="date" name="start_mask" style="width:110px;" value="" onchange="onclickCheckMask();">
+            ～
+            <input id="input_end_mask" type="date" name="end_mask" style="width:110px;" value="" onchange="onclickCheckMask();">
+          </label>
         </li>
       </ul>
     </div>
@@ -103,7 +110,17 @@
         <input class="form-check-input" type="checkbox" value="" id="check_addnext">
         選択項目の下に追加
       </label>
+      <button type="button" class="btn btn-link py-0 mx-0" id="btn_simple" onclick="simpleEditOnOff();">テキスト編集</button>
     </form>
+    <div id="simple_edit" class="mx-3" style="display:none;">
+      <button type="button" class="btn btn-link py-0 mx-0" id="btn_apply" onclick="simpleEditApply();">適用</button>
+      <select id="select_simple" style='font-size:12px;' onchange="simpleEditSelect();">
+        <option value="Add" selected>新規追加</option>
+        <option value="Rename">項目名変更</option>
+        <option value="Other">階層変更、並び替え、削除</option>
+      </select>
+      <textarea rows="10" class="form-control" name="text_edit" id="text_edit" style="overflow:auto;"></textarea>
+    </div>
   </div>
   <div>
     <form class="py-0 mx-0">
@@ -120,7 +137,7 @@
       <button type="button" class="btn btn-primary py-0 mx-0" id="btn_down" onclick="onclickBtnDown();">▼</button>
       <label class="py-0 mx-0">
         <input id="input_task_name" type="text" name="task_name" onchange="onclickBtnEdit();">
-        <input id="input_task_layer" type="number" min="1" max="5" step="1" value="" onchange="onclickBtnEdit();">
+        <input id="input_task_layer" type="number" min="1" max="9" step="1" value="" onchange="onclickBtnEdit();">
       </label>
       <label class="py-0 mx-3">
         <input id="input_task_progress" type="number" min="0" max="100" step="1" value="" onchange="onclickBtnEdit();">
@@ -157,16 +174,59 @@
     var interval_id = 0;
 
     function onclickSave(){
-      let var_range  = 'var range  = \'' + document.getElementById('select_range').options[document.getElementById('select_range').selectedIndex].value + '\';\n'
-      let var_height = 'var height = ' + document.getElementById('input_svg_height').value + ';\n'
+      let var_range  = 'var range  = \'' + document.getElementById('select_range').options[document.getElementById('select_range').selectedIndex].value + '\';\n';
+      let var_height = 'var height = ' + document.getElementById('input_svg_height').value + ';\n';
+      let var_st_mask= 'var st_mask= \'' + document.getElementById('input_start_mask').value + '\';\n';
+      let var_ed_mask= 'var ed_mask= \'' + document.getElementById('input_end_mask').value + '\';\n';
       let var_tasks  = 'var tasks  = ' + JSON.stringify(gantt.getTasks()) + ';\n';
-      let write_json = var_range + var_height + var_tasks;
+      let write_json = var_range + var_height + var_st_mask + var_ed_mask + var_tasks;
       let blob = new Blob([write_json], {type: 'application/json'});
       let aTag = document.createElement("a");
       aTag.href = URL.createObjectURL(blob);
       aTag.download = 'tasks.json';
       aTag.click();
       URL.revokeObjectURL(aTag.href);
+    }
+
+    function simpleEditOnOff(){
+      let simple_edit = document.getElementById('simple_edit');
+      let text_edit = document.getElementById('text_edit');
+      if(simple_edit.style.display === 'none'){
+        simpleEditSelect();
+        simple_edit.style.display = 'inherit';
+      }
+      else{
+        simple_edit.style.display = 'none';
+        text_edit.value = '';
+      }
+    }
+
+    function simpleEditSelect(){
+      let select_simple = document.getElementById('select_simple');
+      let selected_value = select_simple.options[select_simple.selectedIndex].value;
+      let text_edit = document.getElementById('text_edit');
+      if(selected_value === 'Add'){
+        text_edit.value = '';
+      }
+      else{
+        text_edit.value = gantt.getSimpleText();
+      }
+    }
+
+    function simpleEditApply(){
+      let select_simple = document.getElementById('select_simple');
+      let selected_value = select_simple.options[select_simple.selectedIndex].value;
+      let input_task_base = document.getElementById('input_task_base');
+      let text_edit = document.getElementById('text_edit');
+      if(selected_value === 'Add'){
+        gantt.addSimpleText(input_task_base.value, text_edit.value);
+      }
+      else if(selected_value === 'Rename'){
+        gantt.renameSimpleText(text_edit.value);
+      }
+      else if(selected_value === 'Other'){
+        gantt.applySimpleText(text_edit.value);
+      }
     }
 
     function viewGanttChart(){
@@ -193,6 +253,13 @@
     function onclickCheckTaskbg(){
       let check_viewTaskbg = document.getElementById('check_viewTaskbg');
       gantt.changeTaskbg(check_viewTaskbg.checked);
+    }
+
+    function onclickCheckMask(){
+      let st_mask = document.getElementById('input_start_mask').value;
+      let ed_mask = document.getElementById('input_end_mask').value;
+      gantt.changeTaskMask(st_mask, ed_mask);
+      document.getElementById('btn_save').removeAttribute('disabled');
     }
 
     function onclickBtnUp(){
@@ -291,6 +358,11 @@
       let input_task_days = document.getElementById('input_task_days');
       let select_user = document.getElementById('select_user');
       let check_sameline = document.getElementById('check_sameline');
+      if(input_task_base.value !== task.id){
+        if(gantt.isChagenTask(input_task_base.value, input_task_name.value, input_task_layer.value, input_task_start.value, input_task_days.value, input_task_progress.value)){
+          onclickBtnEdit();
+        }
+      }
       input_task_base.value         = task.id;
       input_task_name.value         = task.name;
       input_task_layer.value        = task.layer;
@@ -320,39 +392,50 @@
       }
     }
 
-    try{
-      let select_user = document.getElementById('select_user');
-      for(let i=0; i < users.length; i++){
-        let option = document.createElement("option");
-        option.text = users[i].name;
-        option.value  = users[i].name;
-        select_user.appendChild(option);
-      }
-      let select_range = document.getElementById('select_range');
-      for(let i=0; i < select_range.options.length; i++){
-        if(select_range.options[i].value === range){
-          select_range.options[i].selected = true;
-          break;
+    function svgInitial(){
+      try{
+        let select_user = document.getElementById('select_user');
+        for(let i=0; i < users.length; i++){
+          let option = document.createElement("option");
+          option.text = users[i].name;
+          option.value  = users[i].name;
+          select_user.appendChild(option);
         }
+        let select_range = document.getElementById('select_range');
+        for(let i=0; i < select_range.options.length; i++){
+          if(select_range.options[i].value === range){
+            select_range.options[i].selected = true;
+            break;
+          }
+        }
+        document.getElementById('input_svg_height').value = height;
+        st_mask
+        document.getElementById('input_start_mask').value = st_mask;
+        document.getElementById('input_end_mask').value = ed_mask;
+        gantt = new MyGantt(tasks, 'MyGanttDiv', 'MyGantt', {
+          'onclick' : (task) => { selectTask(task); },
+          'onchange': (task) => { selectTask(task);
+            document.getElementById('btn_save').removeAttribute('disabled');
+           },
+          'height'    : height,
+          'range'     : range,
+          'holiday'   : holiday,
+          'events'    : events,
+          'taskbg'    : false,
+          'start_mask': st_mask,
+          'end_mask'  : ed_mask
+        });
+        gantt.drawGantt();
+        // for debug↓
+        interval_id = setInterval(cycleWork, 1000);
       }
-      document.getElementById('input_svg_height').value = height;
-      gantt = new MyGantt(tasks, 'MyGanttDiv', 'MyGantt', {
-        'onclick' : (task) => { selectTask(task); },
-        'onchange': (task) => { selectTask(task);
-          document.getElementById('btn_save').removeAttribute('disabled');
-         },
-        'height'  : height,
-        'range'   : range,
-        'holiday' : holiday,
-        'events'  : events,
-        'taskbg'  : false
-      });
-      gantt.drawGantt();
-      // for debug↓
-      interval_id = setInterval(cycleWork, 1000);
+      catch(ex){
+        document.write(ex);
+      }
     }
-    catch(ex){
-      document.write(ex);
+
+    window.onload = function(){
+      svgInitial();
     }
   </script>
 </body>
