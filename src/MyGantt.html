@@ -358,12 +358,12 @@
       let input_task_days = document.getElementById('input_task_days');
       let select_user = document.getElementById('select_user');
       let check_sameline = document.getElementById('check_sameline');
-      if(input_task_base.value !== task.id){
+      if(input_task_base.value !== task.name){
         if(gantt.isChagenTask(input_task_base.value, input_task_name.value, input_task_layer.value, input_task_start.value, input_task_days.value, input_task_progress.value)){
           onclickBtnEdit();
         }
       }
-      input_task_base.value         = task.id;
+      input_task_base.value         = task.name;
       input_task_name.value         = task.name;
       input_task_layer.value        = task.layer;
       input_task_progress.value     = task.progress;
@@ -377,7 +377,8 @@
         }
       }
       check_sameline.checked        = ('on' === task.sameline) ? true : false;
-      gantt.selectTask(task.id)
+      setTasks();
+      gantt.selectTask(task.name)
     }
 
     // for debug↓
@@ -427,7 +428,7 @@
         });
         gantt.drawGantt();
         // for debug↓
-        interval_id = setInterval(cycleWork, 1000);
+        //interval_id = setInterval(cycleWork, 1000);
       }
       catch(ex){
         document.write(ex);

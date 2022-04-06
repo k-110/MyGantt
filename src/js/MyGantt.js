@@ -58,7 +58,9 @@ class MyGantt{
   constructor(tasks, div_id, svg_id, config){
     this.tasks = tasks;
     for(let i=0; i<this.tasks.length; i++){
-      this.tasks[i].id = this.tasks[i].name;
+      if(delete tasks[i].id){
+        delete tasks[i].id;
+      }
     }
     this.div_id = div_id;
     this.svg_id = svg_id;
@@ -80,6 +82,7 @@ class MyGantt{
       'taskbg'     : false,
       'start_mask' : '',
       'end_mask'   : '',
+      'key_mask'   : '',
       'xpos'       : -1,
       'ypos'       : 0
     };
@@ -94,6 +97,7 @@ class MyGantt{
     if(config.taskbg)    { this.config.taskbg     = config.taskbg; }
     if(config.start_mask){ this.config.start_mask = config.start_mask; }
     if(config.end_mask)  { this.config.end_mask   = config.end_mask; }
+    if(config.key_mask)  { this.config.key_mask   = config.key_mask; }
     MyGanttDraggableItem.dragElem = null;
     MyGanttDraggableItem.parent   = this;
     this.select  = '';
@@ -128,8 +132,8 @@ class MyGantt{
     return this.tasks;
   }
 
-  upTask(id){
-    let index = this.tasks.findIndex((t) => t.id === id);
+  upTask(name){
+    let index = this.tasks.findIndex((t) => t.name === name);
     if(0 < index){
       let tmp = this.tasks[index];
       this.tasks[index]   = this.tasks[index-1];
@@ -138,8 +142,8 @@ class MyGantt{
     }
   }
 
-  downTask(id){
-    let index = this.tasks.findIndex((t) => t.id === id);
+  downTask(name){
+    let index = this.tasks.findIndex((t) => t.name === name);
     if(index < (this.tasks.length -1)){
       let tmp = this.tasks[index];
       this.tasks[index]   = this.tasks[index+1];
@@ -148,9 +152,9 @@ class MyGantt{
     }
   }
 
-  updateTask(id, task){
-    let index = this.tasks.findIndex((t) => t.id === id);
-    if((0 <= index) && this.isEnableName(id, task.name) && this.isEnableDependencies(id, task.name, task.dependencies)){
+  updateTask(name, task){
+    let index = this.tasks.findIndex((t) => t.name === name);
+    if((0 <= index) && this.isEnableName(name, task.name) && this.isEnableDependencies(name, task.name, task.dependencies)){
       this.removeArrow(this.tasks[index]);
       if(task.name)        { this.tasks[index].name         = task.name; }
       if(task.layer)       { this.tasks[index].layer        = task.layer; }
@@ -161,29 +165,30 @@ class MyGantt{
       if(task.custom_class){ this.tasks[index].custom_class = task.custom_class; }
                        else{ this.tasks[index].custom_class = '' }
       if(task.sameline)    { this.tasks[index].sameline     = task.sameline; }
-      if(id != task.name){
+      if(name != task.name){
         for(let i=0; i<this.tasks.length; i++){
           if(this.tasks[i].dependencies){
-            this.tasks[i].dependencies = this.changeDependencies(id, task.name, this.tasks[i].dependencies);
+            this.tasks[i].dependencies = this.changeDependencies(name, task.name, this.tasks[i].dependencies);
           }
         }
       }
-      this.writeHistory('updateTask ' + id + ' > ' + task.name)
+      this.writeHistory('updateTask ' + name + ' > ' + task.name)
       let tasks = [this.tasks[index]];
       if(this.isNeedReview(tasks)){
         this.drawGantt();
       }
       else{
+        this.changeTaksEleElementId(name, this.tasks[index].name);
         this.addArrow(this.tasks[index]);
-        this.drawGanttTasks(this.tasks[index].id);
+        this.drawGanttTasks(this.tasks[index]);
         this.writeHistory('drawGanttTask');
       }
       this.config.onchange(this.tasks[index]);
     }
   }
 
-  isChagenTask(id, name, layer, start, days, progress){
-    let index = this.tasks.findIndex((t) => t.id === id);
+  isChagenTask(base, name, layer, start, days, progress){
+    let index = this.tasks.findIndex((t) => t.name === base);
     if(0 <= index){
       if(this.tasks[index].name     !== name){ return true; }
       if(this.tasks[index].layer    !== layer){ return true; }
@@ -196,7 +201,6 @@ class MyGantt{
 
   addTask(task, next=''){
     let new_task = {
-      'id'          : '',
       'name'        : '作業' + Date.now().toString(),
       'layer'       : 1,
       'progress'    : 0,
@@ -218,10 +222,9 @@ class MyGantt{
     if(task.dependencies){ new_task.dependencies = task.dependencies; }
     if(task.custom_class){ new_task.custom_class = task.custom_class; }
                      else{ new_task.custom_class = '' }
-    new_task.id = new_task.name;
     if(this.isEnableName(null, new_task.name) && this.isEnableDependencies(null, new_task.name, new_task.dependencies)){
       if(0 < next.length){
-        let index = this.tasks.findIndex((t) => t.id === next);
+        let index = this.tasks.findIndex((t) => t.name === next);
         if(0 <= index){
           this.tasks.splice(index+1, 0, new_task);
         }
@@ -233,22 +236,22 @@ class MyGantt{
         this.tasks.push(new_task);
         this.config.ypos = -1;
       }
-      this.writeHistory('addTask ' + new_task.name)
+      this.writeHistory('addTask ' + new_task.name);
       this.drawGantt();
       this.config.onchange(new_task);
     }
   }
 
-  deleteTask(id){
-    let index = this.tasks.findIndex((t) => t.id === id);
+  deleteTask(name){
+    let index = this.tasks.findIndex((t) => t.name === name);
     if(0 <= index){
       for(let i=0; i<this.tasks.length; i++){
         if(this.tasks[i].dependencies){
-          this.tasks[i].dependencies = this.changeDependencies(id, null, this.tasks[i].dependencies);
+          this.tasks[i].dependencies = this.changeDependencies(name, null, this.tasks[i].dependencies);
         }
       }
       this.tasks.splice(index, 1);
-      this.writeHistory('deleteTask ' + id)
+      this.writeHistory('deleteTask ' + name)
       this.drawGantt();
     }
   }
@@ -262,8 +265,7 @@ class MyGantt{
       return false;
     }
     for(let i=0; i<this.tasks.length; i++){
-      if((new_name === this.tasks[i].id)
-       ||(new_name === this.tasks[i].name)){
+      if(new_name === this.tasks[i].name){
         count++;
       }
     }
@@ -282,12 +284,12 @@ class MyGantt{
     return true;
   }
 
-  changeDependencies(id, new_id, dependencies){
+  changeDependencies(name, new_name, dependencies){
     try{
       for(let i=0; i<dependencies.length; i++){
-        if(dependencies[i] === id){
-          if(new_id){
-             dependencies[i] = new_id;
+        if(dependencies[i] === name){
+          if(new_name){
+             dependencies[i] = new_name;
           }
           else{
             dependencies.splice(i, 1);
@@ -332,10 +334,10 @@ class MyGantt{
     return text;
   }
 
-  addSimpleText(id, text){
+  addSimpleText(name, text){
     let index = this.tasks.length;
-    if(0 < id.length){
-      index = this.tasks.findIndex((t) => t.id === id) +1;
+    if(0 < name.length){
+      index = this.tasks.findIndex((t) => t.name === name) +1;
       if(index < 1){
         index = this.tasks.length;
       }
@@ -360,7 +362,12 @@ class MyGantt{
       let simpleTask = this.getLayerAndName(lines[i]);
       if(simpleTask != null){
         this.writeHistory(simpleTask);
-        if(this.isEnableName(this.tasks[i].id, simpleTask.name) && (this.tasks[i].layer == simpleTask.layer)){
+        if(this.isEnableName(this.tasks[i].name, simpleTask.name) && (this.tasks[i].layer == simpleTask.layer)){
+          for(let j=0; j<this.tasks.length; j++){
+            if(this.tasks[j].dependencies){
+              this.tasks[j].dependencies = this.changeDependencies(this.tasks[i].name, simpleTask.name, this.tasks[j].dependencies);
+            }
+          }
           this.tasks[i].name = simpleTask.name;
         }
       }
@@ -397,10 +404,9 @@ class MyGantt{
   simpleteTextToNewTask(text){
     let simpleTask = this.getLayerAndName(text);
     if(simpleTask != null){
-      let task = this.tasks.find((t) => t.id === simpleTask.name);
+      let task = this.tasks.find((t) => t.name === simpleTask.name);
       if(task == null){
         let new_task = {
-          'id'          : simpleTask.name,
           'name'        : simpleTask.name,
           'layer'       : simpleTask.layer,
           'progress'    : 0,
@@ -419,7 +425,7 @@ class MyGantt{
   simpleteTextToTask(text){
     let simpleTask = this.getLayerAndName(text);
     if(simpleTask != null){
-      let task = this.tasks.find((t) => t.id === simpleTask.name);
+      let task = this.tasks.find((t) => t.name === simpleTask.name);
       if(task != null){
         task.layer = simpleTask.layer;
         return task;
@@ -453,9 +459,6 @@ class MyGantt{
   // draw
   //------------------------
   drawGantt(range=this.config.range){
-    for(let i=0; i<this.tasks.length; i++){
-      this.tasks[i].id = this.tasks[i].name;
-    }
     if(this.config.range != range){
       this.config.xpos = -1;
     }
@@ -477,17 +480,43 @@ class MyGantt{
     this.writeHistory('drawGantt');
   }
 
-  drawGanttTasks(id, complete=[]){
-    if(this.isComplete(id, complete)){
+  changeTaksEleElementId(name, new_name){
+    let elem_rect  = document.getElementById('gantt_label_rect_' + name);
+    let elem_text  = document.getElementById('gantt_label_' + name);
+    let elem_event = document.getElementById(name);
+    let elem_bar   = document.getElementById('gantt_bar_' + name);
+    let elem_prog  = document.getElementById('gantt_progress_' + name);
+    let elem_label = document.getElementById('gantt_label_bar_' + name);
+    if(elem_rect){
+      elem_rect.setAttribute('id', 'gantt_label_rect_' + new_name);
+    }
+    if(elem_text){
+      elem_text.setAttribute('id', 'gantt_label_' + new_name);
+    }
+    if(elem_event){
+      elem_event.setAttribute('id', new_name);
+    }
+    if(elem_bar){
+      elem_bar.setAttribute('id', 'gantt_bar_' + new_name);
+    }
+    if(elem_prog){
+      elem_prog.setAttribute('id', 'gantt_progress_' + new_name);
+    }
+    if(elem_label){
+      elem_label.setAttribute('id', 'gantt_label_bar_' + new_name);
+    }
+  }
+
+  drawGanttTasks(task, complete=[]){
+    if(this.isComplete(task.name, complete)){
       return;
     }
-    complete.push(id);
-    let task = this.tasks.find((t) => t.id === id);
+    complete.push(task.name);
     this.drawGanttTask(task);
     for(let i=0; i<this.tasks.length; i++){
       for(let j=0; j<this.tasks[i].dependencies.length; j++){
-        if(this.tasks[i].dependencies[j] === id){
-          this.drawGanttTasks(this.tasks[i].id, complete);
+        if(this.tasks[i].dependencies[j] === task.name){
+          this.drawGanttTasks(this.tasks[i], complete);
           break;
         }
       }
@@ -495,12 +524,12 @@ class MyGantt{
   }
 
   drawGanttTask(task){
-    let elem_rect  = document.getElementById('gantt_label_rect_' + task.id);
-    let elem_text  = document.getElementById('gantt_label_' + task.id);
-    let elem_event = document.getElementById(task.id);
-    let elem_bar   = document.getElementById('gantt_bar_' + task.id);
-    let elem_prog  = document.getElementById('gantt_progress_' + task.id);
-    let elem_label = document.getElementById('gantt_label_bar_' + task.id);
+    let elem_rect  = document.getElementById('gantt_label_rect_' + task.name);
+    let elem_text  = document.getElementById('gantt_label_' + task.name);
+    let elem_event = document.getElementById(task.name);
+    let elem_bar   = document.getElementById('gantt_bar_' + task.name);
+    let elem_prog  = document.getElementById('gantt_progress_' + task.name);
+    let elem_label = document.getElementById('gantt_label_bar_' + task.name);
     //----------
     // Task
     //----------
@@ -514,6 +543,7 @@ class MyGantt{
       else{
         if(this.config.taskbg){
           elem_rect_class = 'gantt-bar-task' + task.custom_class;
+          elem_text_class = 'gantt-bar-label' + task.custom_class;
         }
       }
       //Rect
@@ -529,8 +559,6 @@ class MyGantt{
       //Bar
       let x  = (this.head.w*(dateCalsDays(this.p.s, new Date(task.start)) -1))/this.p.g;
       let w  = (this.head.w*task.days)/this.p.g;
-      this.writeHistory('old  x=' + elem_bar.getAttribute('x') + '  w=' + elem_bar.getAttribute('width'));
-      this.writeHistory('new  x=' + x + '  w=' + w);
       elem_bar.setAttribute('class', 'gantt-bar' + task.custom_class);
       elem_bar.setAttribute('x', x);
       elem_bar.setAttribute('width', w);
@@ -542,7 +570,7 @@ class MyGantt{
       if(elem_label != null){
         elem_label.textContent = task.name;
       }
-      this.moveArrow(task.id);
+      this.moveArrow(task.name);
     }
   }
 
@@ -567,8 +595,8 @@ class MyGantt{
     this.drawGantt();
   }
 
-  changeTaskClose(id){
-    let task = this.tasks.find((t) => t.id === id);
+  changeTaskClose(name){
+    let task = this.tasks.find((t) => t.name === name);
     if(task){
       if(task.close){
         task.close = 0;
@@ -591,7 +619,27 @@ class MyGantt{
     this.drawGantt();
   }
 
-  selectTask(id=''){
+  changeMaskKeyword(key_mask){
+    this.config.key_mask = key_mask;
+    this.drawGantt();
+  }
+
+  changeEvents(events){
+    for(let i=0; i<this.config.events.length; i++){
+      let id   = 'event_' + this.config.events[i].date;
+      let elem =  document.getElementById(id);
+      if(elem){
+        elem.remove();
+      }
+    }
+    this.config.events = events;
+    let cal = document.getElementById(this.cal_id);
+    let svg = SVG.adopt(cal);
+    this.drowEvent(svg, this.config.events);
+    this.writeHistory('changeEvents');
+  }
+
+  selectTask(name=''){
     let gantt= document.getElementById(this.tsk_id);
     let svg  = SVG.adopt(gantt);
     let s_id = 'gantt_label_select';
@@ -600,15 +648,15 @@ class MyGantt{
       elem.remove();
       this.select = '';
     }
-    if(0 < id.length){
-       let next = document.getElementById('gantt_label_' + id);
+    if(0 < name.length){
+       let next = document.getElementById('gantt_label_' + name);
        if(next){
          let box = next.getBBox();
          let step= this.task.h;
          let y   = box.y;
          let w   = this.head.ow-this.task.s;
          svg.rect(w, step).attr({x:0, y:y, id:s_id}).addClass('gantt-bar-task-select');
-         this.select = id;
+         this.select = name;
        }
     }
   }
@@ -649,6 +697,9 @@ class MyGantt{
   getNameLength(svg, tasks){
     let max = 150;
     for(let i=0; i<tasks.length; i++){
+      if(this.isTaskHide(tasks[i])){
+        continue;
+      }
       let id   = 'setConfig_damy';
       let name = this.getTaskText(tasks[i]) + '　';
       let text = svg.text(name).attr({x:0, y:30, id:id}).addClass('gantt-bar-label');
@@ -1161,7 +1212,8 @@ class MyGantt{
       let day= dateCalsDays(new Date(this.p.s), new Date(events[i].date));
       let x  = (this.head.w*(day -1))/this.p.g + this.head.sp + this.head.l;
       let y  = this.head.f*3 + this.head.sp + this.head.l;
-      svg.text('▲' + events[i].name).attr({x:x, y:y}).addClass('gantt-event');
+      let id = 'event_' + events[i].date;
+      svg.text('▲' + events[i].name).attr({x:x, y:y, id:id}).addClass('gantt-event');
     }
   }
 
@@ -1175,8 +1227,8 @@ class MyGantt{
       let x  = this.task.sp;
       let y  = step*(c+1) - this.task.sp - this.task.l*2;
       let w  = this.head.ow-this.task.s;
-      let id = 'gantt_label_' + tasks[i].id;
-      let idr= 'gantt_label_rect_' + tasks[i].id;
+      let id = 'gantt_label_' + tasks[i].name;
+      let idr= 'gantt_label_rect_' + tasks[i].name;
       if(100 <= tasks[i].progress){
         svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task-complete');
         svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label-complete');
@@ -1184,11 +1236,12 @@ class MyGantt{
       else{
         if(this.config.taskbg){
           svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task' + tasks[i].custom_class);
+          svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label' + tasks[i].custom_class);
         }
         else{
           svg.rect(w, step).attr({x:0, y:(step*c), id:idr}).addClass('gantt-bar-task-none');
+          svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label');
         }
-        svg.text(this.getTaskText(tasks[i])).attr({x:x, y:y, id:id, cursor:'pointer'}).addClass('gantt-bar-label');
       }
       let elem = document.getElementById(id);
       elem.addEventListener('mousedown', this.eventSelectTask);
@@ -1217,6 +1270,9 @@ class MyGantt{
     if(this.isTaskMask(task.start)){
       return true;
     }
+    if(!this.isTaskHit(task)){
+      return true;
+    }
     return false;
   }
 
@@ -1234,6 +1290,13 @@ class MyGantt{
       }
     }
     return false;
+  }
+  
+  isTaskHit(task){
+    if(this.config.key_mask === ''){
+      return true;
+    }
+    return (0 <= task.name.indexOf(this.config.key_mask));
   }
 
   getTaskText(task){
@@ -1256,7 +1319,9 @@ class MyGantt{
       if(this.isTaskHide(tasks[i])){
         if('on' === tasks[i].sameline){
           if(!this.isTaskMask(tasks[i].start)){
-            this.drawBarSub(svg, tasks[i], c-1);
+            if(this.isTaskHit(tasks[i])){
+              this.drawBarSub(svg, tasks[i], c-1);
+            }
           }
         }
         continue;
@@ -1274,10 +1339,10 @@ class MyGantt{
     let y  = step*(count) + (step-this.task.b-this.task.sp-this.task.l);
     let w  = (this.head.w*task.days)/this.p.g;
     let h  = this.task.b;
-    let id = task.id;
+    let id = task.name;
     let g  = svg.group().attr({transform:'translate(0,0)', id:id, cursor:'pointer'});
-    g.rect(w, h).attr({x:x, y:y, id:'gantt_bar_' + task.id, rx:3, ry:3}).addClass('gantt-bar' + task.custom_class);
-    g.rect(w*task.progress/100, h*2/3).attr({x:x, y:y+(h/3), id:'gantt_progress_' + task.id, rx:3, ry:3}).addClass('gantt-bar-progress' + task.custom_class);
+    g.rect(w, h).attr({x:x, y:y, id:'gantt_bar_' + task.name, rx:3, ry:3}).addClass('gantt-bar' + task.custom_class);
+    g.rect(w*task.progress/100, h*2/3).attr({x:x, y:y+(h/3), id:'gantt_progress_' + task.name, rx:3, ry:3}).addClass('gantt-bar-progress' + task.custom_class);
     if(this.config.text){
       //TODO:
       g.text(task.name).attr({x:x, y:y+h-this.task.l, id:'gantt_label_bar_' + id}).addClass('gantt-over-label' + task.custom_class);
@@ -1302,17 +1367,17 @@ class MyGantt{
     }
     if(task.dependencies){
       for(let j=0; j<task.dependencies.length; j++){
-        let id   = 'gantt_arrow_' + task.dependencies[j] + '_' + task.id;
-        let point= this.getPoint(task.id, task.dependencies[j]);
+        let id   = 'gantt_arrow_' + task.dependencies[j] + '_' + task.name;
+        let point= this.getPoint(task.name, task.dependencies[j]);
         let line = svg.polyline(point).attr({id:id}).addClass('gantt-arrow');
         line.marker('end', this.task.a, this.task.a, function(add){add.polygon([0,0, 0,4, 4,2]).addClass('gantt-arrow-end');});
       }
     }
   }
 
-  getPoint(task_id, dependencies_id){
-    let st = document.getElementById('gantt_bar_' + dependencies_id);
-    let ed = document.getElementById('gantt_bar_' + task_id);
+  getPoint(task_name, dependencies_name){
+    let st = document.getElementById('gantt_bar_' + dependencies_name);
+    let ed = document.getElementById('gantt_bar_' + task_name);
     if((!st) || (!ed)){
       return []
     }
@@ -1345,36 +1410,36 @@ class MyGantt{
     return point;
   }
 
-  moveBars(id, mov, ongrid, complete=[]){
-    if(this.isComplete(id, complete)){
+  moveBars(name, mov, ongrid, complete=[]){
+    if(this.isComplete(name, complete)){
       return;
     }
-    complete.push(id);
-    this.moveBar(id, mov, ongrid);
+    complete.push(name);
+    this.moveBar(name, mov, ongrid);
     for(let i=0; i<this.tasks.length; i++){
       for(let j=0; j<this.tasks[i].dependencies.length; j++){
-        if(this.tasks[i].dependencies[j] === id){
-          this.moveBars(this.tasks[i].id, mov, ongrid, complete);
+        if(this.tasks[i].dependencies[j] === name){
+          this.moveBars(this.tasks[i].name, mov, ongrid, complete);
           break;
         }
       }
     }
   }
 
-  isComplete(id, complete){
+  isComplete(name, complete){
     for(let i=0; i<complete.length; i++){
-      if(complete[i] === id){
+      if(complete[i] === name){
         return true;
       }
     }
     return false;
   }
 
-  moveBar(id, mov, ongrid){
-    let i    = this.tasks.findIndex((t) => t.id === id);
-    let b    = document.getElementById('gantt_bar_' + id);
-    let p    = document.getElementById('gantt_progress_' + id);
-    let t    = document.getElementById('gantt_label_bar_' + id);
+  moveBar(name, mov, ongrid){
+    let i    = this.tasks.findIndex((t) => t.name === name);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let p    = document.getElementById('gantt_progress_' + name);
+    let t    = document.getElementById('gantt_label_bar_' + name);
     if(b == null){
       if(ongrid){
         let days = dateCalsDays(new Date(this.movebef), new Date(this.movenow))
@@ -1396,16 +1461,16 @@ class MyGantt{
       //TODO:
       t.x.baseVal.getItem(0).value = x;
     }
-    this.moveArrow(id);
+    this.moveArrow(name);
   }
 
-  moveArrow(id){
+  moveArrow(name){
     for(let i=0; i<this.tasks.length; i++){
-      if(this.tasks[i].id === id){
+      if(this.tasks[i].name === name){
         for(let j=0; j<this.tasks[i].dependencies.length; j++){
-          let point= this.getPoint(this.tasks[i].id, this.tasks[i].dependencies[j]);
+          let point= this.getPoint(this.tasks[i].name, this.tasks[i].dependencies[j]);
           if(0 < point.length){
-            let id_a = 'gantt_arrow_' + this.tasks[i].dependencies[j] + '_' + this.tasks[i].id;
+            let id_a = 'gantt_arrow_' + this.tasks[i].dependencies[j] + '_' + this.tasks[i].name;
             let poly = document.getElementById(id_a);
             if(poly){
               poly.setAttribute('points', point);
@@ -1421,18 +1486,18 @@ class MyGantt{
     let svg = SVG.adopt(bar);
     this.clearCloseWrok();
     this.drawArrow(svg, task);
-    this.writeHistory('addArrow ' + task.id);
+    this.writeHistory('addArrow ' + task.name);
   }
 
   removeArrow(task){
     for(let i=0; i<task.dependencies.length; i++){
-      let id   = 'gantt_arrow_' + task.dependencies[i] + '_' + task.id;
+      let id   = 'gantt_arrow_' + task.dependencies[i] + '_' + task.name;
       let line = document.getElementById(id);
       if(line){
         line.remove();
       }
     }
-    this.writeHistory('removeArrow ' + task.id);
+    this.writeHistory('removeArrow ' + task.name);
   }
 
   isNeedReview(tasks=null){
@@ -1442,7 +1507,7 @@ class MyGantt{
       tasks = this.tasks;
     }
     for(let i=0; i<tasks.length; i++){
-      let bar = document.getElementById('gantt_bar_' + tasks[i].id);
+      let bar = document.getElementById('gantt_bar_' + tasks[i].name);
       if(bar == null){
         continue;
       }
@@ -1487,8 +1552,8 @@ class MyGantt{
     this.setPositionAndSize();
   }
 
-  addResizeItem(id){
-    let elem = document.getElementById(id);
+  addResizeItem(name){
+    let elem = document.getElementById(name);
     let svg  = SVG.adopt(elem);
     let box  = elem.getBBox();
     let w    = 2;
@@ -1496,24 +1561,24 @@ class MyGantt{
     let lx   = box.x;
     let rx   = lx +box.width -w;
     let y    = box.y;
-    svg.rect(w, h).attr({x:lx, y:y, id:'gantt_bar_left_' + id, cursor:'w-resize'}).addClass('gantt-bar-resize');
-    svg.rect(w, h).attr({x:rx, y:y, id:'gantt_bar_right_' + id, cursor:'e-resize'}).addClass('gantt-bar-resize');
-    let re    = document.getElementById('gantt_bar_right_' + id);
-    let le    = document.getElementById('gantt_bar_left_' + id);
+    svg.rect(w, h).attr({x:lx, y:y, id:'gantt_bar_left_' + name, cursor:'w-resize'}).addClass('gantt-bar-resize');
+    svg.rect(w, h).attr({x:rx, y:y, id:'gantt_bar_right_' + name, cursor:'e-resize'}).addClass('gantt-bar-resize');
+    let re    = document.getElementById('gantt_bar_right_' + name);
+    let le    = document.getElementById('gantt_bar_left_' + name);
     re.addEventListener('mousedown',  this.eventRightDown);
     le.addEventListener('mousedown',  this.eventLeftDown);
   }
 
-  removeResizeItem(id){
-    document.getElementById('gantt_bar_left_' + id).remove();
-    document.getElementById('gantt_bar_right_' + id).remove();
+  removeResizeItem(name){
+    document.getElementById('gantt_bar_left_' + name).remove();
+    document.getElementById('gantt_bar_right_' + name).remove();
     MyGanttDraggableItem.edgeElem = null;
   }
 
-  resizeBarRight(id, width, progress, mov, ongrid){
-    let i    = this.tasks.findIndex((t) => t.id === id);
-    let b    = document.getElementById('gantt_bar_' + id);
-    let p    = document.getElementById('gantt_progress_' + id);
+  resizeBarRight(name, width, progress, mov, ongrid){
+    let i    = this.tasks.findIndex((t) => t.name === name);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let p    = document.getElementById('gantt_progress_' + name);
     let w    = width + mov;
     if(this.p.g/this.head.w < w){
       if(ongrid){
@@ -1523,15 +1588,15 @@ class MyGantt{
       }
       b.width.baseVal.value = w;
       p.width.baseVal.value = (w*progress)/100;
-      this.moveArrow(id);
+      this.moveArrow(name);
     }
   }
 
-  resizeBarLeft(id, basex, width, progress, mov, ongrid){
-    let i    = this.tasks.findIndex((t) => t.id === id);
-    let b    = document.getElementById('gantt_bar_' + id);
-    let p    = document.getElementById('gantt_progress_' + id);
-    let t    = document.getElementById('gantt_label_bar_' + id);
+  resizeBarLeft(name, basex, width, progress, mov, ongrid){
+    let i    = this.tasks.findIndex((t) => t.name === name);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let p    = document.getElementById('gantt_progress_' + name);
+    let t    = document.getElementById('gantt_label_bar_' + name);
     let x    = b.x.baseVal.value + mov;
     let w    = width + (basex-x);
     if(this.p.g/this.head.w < w){
@@ -1550,7 +1615,7 @@ class MyGantt{
         //TODO:
         t.x.baseVal.getItem(0).value = x;
       }
-      this.moveArrow(id);
+      this.moveArrow(name);
     }
   }
 
@@ -1560,17 +1625,27 @@ class MyGantt{
   eventSelectTask(e){
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     e.preventDefault();
-    let id   = e.target.parentNode.id.replace('gantt_label_', '');
-    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+    let name = e.target.parentNode.id.replace('gantt_label_', '');
+    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
+    //TODO:原因はわからないが、イベント発行元が異なることがあるため動くように対処
+    if(task == undefined){
+      name = e.target.id.replace('gantt_label_', '');
+      task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
+    }
     MyGanttDraggableItem.parent.config.onclick(task);
   }
 
   eventDblClickTask(e){
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     e.preventDefault();
-    let id   = e.target.parentNode.id.replace('gantt_label_', '');
-    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
-    MyGanttDraggableItem.parent.changeTaskClose(id);
+    let name = e.target.parentNode.id.replace('gantt_label_', '');
+    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
+    //TODO:原因はわからないが、イベント発行元が異なることがあるため動くように対処
+    if(task == undefined){
+      name = e.target.id.replace('gantt_label_', '');
+      task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
+    }
+    MyGanttDraggableItem.parent.changeTaskClose(name);
     MyGanttDraggableItem.parent.config.onchange(task);
   }
 
@@ -1614,11 +1689,11 @@ class MyGantt{
   eventRightDown(e){
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     e.preventDefault();
-    let id   = e.target.parentNode.id;
-    let elem = document.getElementById(id);
+    let name = e.target.parentNode.id;
+    let elem = document.getElementById(name);
     let box  = elem.getBBox();
-    let b    = document.getElementById('gantt_bar_' + id);
-    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
     MyGanttDraggableItem.offsetX = e.clientX - box.x;
     MyGanttDraggableItem.offsetY = e.clientY - box.y;
     MyGanttDraggableItem.baseX   = b.getBBox().x;
@@ -1634,11 +1709,11 @@ class MyGantt{
   eventLeftDown(e){
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     e.preventDefault();
-    let id   = e.target.parentNode.id;
-    let elem = document.getElementById(id);
+    let name = e.target.parentNode.id;
+    let elem = document.getElementById(name);
     let box  = elem.getBBox();
-    let b    = document.getElementById('gantt_bar_' + id);
-    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
     MyGanttDraggableItem.offsetX = e.clientX - box.x;
     MyGanttDraggableItem.offsetY = e.clientY - box.y;
     MyGanttDraggableItem.baseX   = b.getBBox().x;
@@ -1654,11 +1729,11 @@ class MyGantt{
   eventMouseDown(e){
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     e.preventDefault();
-    let id   = e.target.parentNode.id;
-    let elem = document.getElementById(id);
+    let name = e.target.parentNode.id;
+    let elem = document.getElementById(name);
     let box  = elem.getBBox();
-    let b    = document.getElementById('gantt_bar_' + id);
-    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+    let b    = document.getElementById('gantt_bar_' + name);
+    let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
     MyGanttDraggableItem.offsetX = e.clientX - box.x;
     MyGanttDraggableItem.offsetY = e.clientY - box.y;
     MyGanttDraggableItem.baseX   = b.getBBox().x;
@@ -1666,15 +1741,15 @@ class MyGantt{
     MyGanttDraggableItem.baseP   = task.progress;
     if((!MyGanttDraggableItem.rlenElem) && (!MyGanttDraggableItem.llenElem)){
       if(e.ctrlKey){
-        let select = MyGanttDraggableItem.parent.tasks.find((t) => t.id === MyGanttDraggableItem.parent.select);
+        let select = MyGanttDraggableItem.parent.tasks.find((t) => t.name === MyGanttDraggableItem.parent.select);
         if(select){
-          let index = select.dependencies.findIndex((t) => t === id);
+          let index = select.dependencies.findIndex((t) => t === name);
           if(0 <= index){
             MyGanttDraggableItem.parent.removeArrow(select);
             select.dependencies.splice(index, 1);
           }
           else{
-            select.dependencies.push(id);
+            select.dependencies.push(name);
           }
           MyGanttDraggableItem.parent.addArrow(select);
           MyGanttDraggableItem.parent.config.onclick(select);
@@ -1693,14 +1768,14 @@ class MyGantt{
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     if(MyGanttDraggableItem.rlenElem){
       e.preventDefault();
-      let id   = MyGanttDraggableItem.rlenElem.id;
+      let name = MyGanttDraggableItem.rlenElem.id;
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      let b    = document.getElementById('gantt_bar_' + id);
+      let b    = document.getElementById('gantt_bar_' + name);
       MyGanttDraggableItem.rlenElem = null;
       MyGanttDraggableItem.llenElem = null;
       MyGanttDraggableItem.dragElem = null;
-      MyGanttDraggableItem.parent.resizeBarRight(id, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x -b.x.baseVal.value, true);
-      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+      MyGanttDraggableItem.parent.resizeBarRight(name, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x -b.x.baseVal.value, true);
+      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
       MyGanttDraggableItem.parent.config.onchange(task);
       let scnt = dateCalsDays(new Date(MyGanttDraggableItem.parent.p.s), new Date(task.start));
       let ecnt = dateCalsDays(dateAddDays(new Date(task.start),task.days), new Date(MyGanttDraggableItem.parent.p.e));
@@ -1710,14 +1785,14 @@ class MyGantt{
     }
     else if(MyGanttDraggableItem.llenElem){
       e.preventDefault();
-      let id   = MyGanttDraggableItem.llenElem.id;
+      let name = MyGanttDraggableItem.llenElem.id;
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      let b    = document.getElementById('gantt_bar_' + id);
+      let b    = document.getElementById('gantt_bar_' + name);
       MyGanttDraggableItem.rlenElem = null;
       MyGanttDraggableItem.llenElem = null;
       MyGanttDraggableItem.dragElem = null;
-      MyGanttDraggableItem.parent.resizeBarLeft(id, MyGanttDraggableItem.baseX, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x-b.x.baseVal.value, true);
-      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+      MyGanttDraggableItem.parent.resizeBarLeft(name, MyGanttDraggableItem.baseX, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x-b.x.baseVal.value, true);
+      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
       MyGanttDraggableItem.parent.config.onchange(task);
       let scnt = dateCalsDays(new Date(MyGanttDraggableItem.parent.p.s), new Date(task.start));
       let ecnt = dateCalsDays(dateAddDays(new Date(task.start),task.days), new Date(MyGanttDraggableItem.parent.p.e));
@@ -1726,14 +1801,14 @@ class MyGantt{
       }
     }
     else if(MyGanttDraggableItem.dragElem){
-      let id   = MyGanttDraggableItem.dragElem.id;
+      let name = MyGanttDraggableItem.dragElem.id;
       MyGanttDraggableItem.rlenElem = null;
       MyGanttDraggableItem.llenElem = null;
       MyGanttDraggableItem.dragElem = null;
-      let b    = document.getElementById('gantt_bar_' + id);
+      let b    = document.getElementById('gantt_bar_' + name);
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      MyGanttDraggableItem.parent.moveBars(id, x-b.x.baseVal.value, true);
-      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.id === id);
+      MyGanttDraggableItem.parent.moveBars(name, x-b.x.baseVal.value, true);
+      let task = MyGanttDraggableItem.parent.tasks.find((t) => t.name === name);
       MyGanttDraggableItem.parent.config.onchange(task);
       if(MyGanttDraggableItem.parent.isNeedReview()){
         MyGanttDraggableItem.parent.drawGantt();
@@ -1751,24 +1826,24 @@ class MyGantt{
     //メモ：イベントリスナー内ではthisはaddEventListenerをしたオブジェクトになるっぽい
     if(MyGanttDraggableItem.rlenElem){
       e.preventDefault();
-      let id   = MyGanttDraggableItem.rlenElem.id;
+      let name = MyGanttDraggableItem.rlenElem.id;
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      let b    = document.getElementById('gantt_bar_' + id);
-      MyGanttDraggableItem.parent.resizeBarRight(id, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x -b.x.baseVal.value, false);
+      let b    = document.getElementById('gantt_bar_' + name);
+      MyGanttDraggableItem.parent.resizeBarRight(name, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x -b.x.baseVal.value, false);
     }
     else if(MyGanttDraggableItem.llenElem){
       e.preventDefault();
-      let id   = MyGanttDraggableItem.llenElem.id;
+      let name = MyGanttDraggableItem.llenElem.id;
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      let b    = document.getElementById('gantt_bar_' + id);
-      MyGanttDraggableItem.parent.resizeBarLeft(id, MyGanttDraggableItem.baseX, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x-b.x.baseVal.value, false);
+      let b    = document.getElementById('gantt_bar_' + name);
+      MyGanttDraggableItem.parent.resizeBarLeft(name, MyGanttDraggableItem.baseX, MyGanttDraggableItem.baseW, MyGanttDraggableItem.baseP, x-b.x.baseVal.value, false);
     }
     else if(MyGanttDraggableItem.dragElem){
       e.preventDefault();
-      let id   = MyGanttDraggableItem.dragElem.id;
+      let name = MyGanttDraggableItem.dragElem.id;
       let x    = e.clientX - MyGanttDraggableItem.offsetX;
-      let b    = document.getElementById('gantt_bar_' + id);
-      MyGanttDraggableItem.parent.moveBars(id, x -b.x.baseVal.value, false);
+      let b    = document.getElementById('gantt_bar_' + name);
+      MyGanttDraggableItem.parent.moveBars(name, x -b.x.baseVal.value, false);
     }
     else if(MyGanttDraggableItem.xbarElem){
       e.preventDefault();
